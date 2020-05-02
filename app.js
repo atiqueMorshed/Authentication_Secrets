@@ -4,8 +4,10 @@ const express = require("express");
 const ejs = require("ejs");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-// const encrypt = require("mongoose-encryption");
-const md5 = require("md5");
+// const encrypt = require("mongoose-encryption"); //level 2
+// const md5 = require("md5"); // level 3 
+const bcrypt = require("bcrypt"); // Level 4: Salting
+const saltRounds = 12;            // Level 4: Salting
 
 const app = express();
 
@@ -46,19 +48,21 @@ app.route("/").get(function(req, res) {
 app.route("/login").get(function(req, res) {
   res.render("login");
 }).post(function(req, res) {
-  User.findOne({email: req.body.username}, function(err, result) {
+  User.findOne({email: req.body.username}, function(err, foundUser) {
     if(!err) {
-      if(result) {
-        if(result.password === md5(req.body.password)) {
-          res.redirect("/secrets");
-        } else {
-          res.send("Incorrect password.");
-        }
+      if(foundUser) {
+        bcrypt.compare(req.body.password, foundUser.password, function(error, result) {
+          if(result) {
+            res.redirect("/secret");
+          } else {
+            res.send("Login failed (brcypt compare failed)");
+          }
+        });
       } else {
         res.send("User associated with the email is not found.");
       }
     } else {
-      console.log("Login failed. (server returned error message)");
+      res.send("Login failed. (server returned error message)");
       // res.render("/login", {
       //   msg: "Incorrect login information."
       // });
@@ -69,21 +73,33 @@ app.route("/login").get(function(req, res) {
 app.route("/register").get(function(req, res) {
   res.render("register");
 }).post(function(req, res) {
-  const user = new User({email: req.body.username, password: md5(req.body.password)});
-  user.save(function(err){
+  bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
     if(!err) {
-      res.render("register", {
-        msg: "Registration successful."
+      const user = new User({
+        email: req.body.username,
+        password: hash
+      });
+      user.save(function(error){
+        if(!error) {
+          res.render("register", {
+            msg: "Registration successful."
+          });
+        } else {
+          res.render("register", {
+            msg: "Registration failed."
+          });
+        }
       });
     } else {
       res.render("register", {
-        msg: "Registration failed."
+        msg: "Error hashing with bcrypt."
       });
     }
   });
+  
 });
 
-app.route("/secrets")
+app.route("/secret")
 .get(function(req, res) {
   res.render("secrets");
 });
