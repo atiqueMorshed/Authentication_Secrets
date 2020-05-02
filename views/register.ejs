@@ -18,6 +18,9 @@
               <input type="password" class="form-control" name="password">
             </div>
             <button type="submit" class="btn btn-dark">Register</button>
+            <% if(typeof msg != 'undefined' && typeof msg != '' && typeof msg != null) { %>
+            <p><%=msg%></p>
+            <% } %>
           </form>
 
         </div>
